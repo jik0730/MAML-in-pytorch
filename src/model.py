@@ -88,7 +88,6 @@ class Net(nn.Module):
         else:
             """
             The architecure of functionals is the same as `self`.
-            TODO batch norm parameters clarification.. 이렇게 해도 되나?
             """
             out = F.conv2d(
                 X,
@@ -103,8 +102,9 @@ class Net(nn.Module):
                 params['meta_learner.features.0.bn0.running_var'],
                 params['meta_learner.features.0.bn0.weight'],
                 params['meta_learner.features.0.bn0.bias'],
-                momentum=1)
-            out = F.relu(out)
+                momentum=1,
+                training=True)
+            out = F.relu(out, inplace=True)
             out = F.max_pool2d(out, MP_SIZE)
 
             out = F.conv2d(
@@ -118,8 +118,9 @@ class Net(nn.Module):
                 params['meta_learner.features.1.bn1.running_var'],
                 params['meta_learner.features.1.bn1.weight'],
                 params['meta_learner.features.1.bn1.bias'],
-                momentum=1)
-            out = F.relu(out)
+                momentum=1,
+                training=True)
+            out = F.relu(out, inplace=True)
             out = F.max_pool2d(out, MP_SIZE)
 
             out = F.conv2d(
@@ -133,8 +134,9 @@ class Net(nn.Module):
                 params['meta_learner.features.2.bn2.running_var'],
                 params['meta_learner.features.2.bn2.weight'],
                 params['meta_learner.features.2.bn2.bias'],
-                momentum=1)
-            out = F.relu(out)
+                momentum=1,
+                training=True)
+            out = F.relu(out, inplace=True)
             out = F.max_pool2d(out, MP_SIZE)
 
             out = F.conv2d(
@@ -148,8 +150,9 @@ class Net(nn.Module):
                 params['meta_learner.features.3.bn3.running_var'],
                 params['meta_learner.features.3.bn3.weight'],
                 params['meta_learner.features.3.bn3.bias'],
-                momentum=1)
-            out = F.relu(out)
+                momentum=1,
+                training=True)
+            out = F.relu(out, inplace=True)
             out = F.max_pool2d(out, MP_SIZE)
 
             out = out.view(out.size(0), -1)
@@ -180,7 +183,7 @@ def conv_block(index,
                     K_SIZE, padding=padding)),
                 ('bn'+str(index), nn.BatchNorm2d(out_channels, momentum=1, \
                     affine=True)),
-                ('relu'+str(index), nn.ReLU()),
+                ('relu'+str(index), nn.ReLU(inplace=True)),
                 ('pool'+str(index), nn.MaxPool2d(MP_SIZE))
             ]))
     else:
@@ -190,7 +193,7 @@ def conv_block(index,
                     K_SIZE, padding=padding)),
                 ('bn'+str(index), nn.BatchNorm2d(out_channels, momentum=1, \
                     affine=True)),
-                ('relu'+str(index), nn.ReLU())
+                ('relu'+str(index), nn.ReLU(inplace=True))
             ]))
     return conv
 

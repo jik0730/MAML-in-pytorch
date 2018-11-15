@@ -1,16 +1,16 @@
 {
     "SEED": 1,
     "dataset": "Omniglot",
-    "meta_lr": 1e-2,
-    "task_lr": 1e-1,
+    "meta_lr": 1e-3,
+    "task_lr": 0.4,
     "num_episodes": 10000,
-    "num_classes": 20,
-    "num_samples": 1,
+    "num_classes": 5,
+    "num_samples": 5,
     "num_query": 10,
     "num_steps": 100,
-    "num_inner_tasks": 16,
-    "num_train_updates": 2,
-    "num_eval_updates": 5,
+    "num_inner_tasks": 32,
+    "num_train_updates": 1,
+    "num_eval_updates": 3,
     "save_summary_steps": 100,
     "num_workers": 1
 }

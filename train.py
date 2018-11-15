@@ -2,6 +2,7 @@
 import argparse
 import os
 import logging
+from collections import OrderedDict
 
 import torch
 import torch.nn as nn
@@ -34,14 +35,13 @@ parser.add_argument(
           reload before training")  # 'best' or 'train'
 
 
-def train_single_task(model, optimizer, task_lr, loss_fn, dataloaders, params):
+def train_single_task(model, task_lr, loss_fn, dataloaders, params):
     """
     Train the model on a single few-shot task.
-    We train the model with one gradient update. (TODO NOT multiple)
+    We train the model with single or multiple gradient update.
     
     Args:
         model: (MetaLearner) a meta-learner to be adapted for a new task
-        optimizer: (torch.optim) optimizer for parameters of model (only for zero_grad())
         task_lr: (float) a task-specific learning rate
         loss_fn: a loss function
         dataloaders: (dict) a dict of DataLoader objects that fetches both of 
@@ -68,26 +68,36 @@ def train_single_task(model, optimizer, task_lr, loss_fn, dataloaders, params):
     loss = loss_fn(Y_sup_hat, Y_sup)
 
     # clear previous gradients, compute gradients of all variables wrt loss
+    def zero_grad(params):
+        for p in params:
+            if p.grad is not None:
+                p.grad.zero_()
+
     # NOTE if we want approx-MAML, change create_graph=True to False
     # optimizer.zero_grad()
     # loss.backward(create_graph=True)
+    zero_grad(model.parameters())
     grads = torch.autograd.grad(loss, model.parameters(), create_graph=True)
 
     # performs updates using calculated gradients
     # we manually compute adpated parameters since optimizer.step() operates in-place
     adapted_state_dict = model.cloned_state_dict()  # NOTE what about just dict
+    adapted_params = OrderedDict()
     for (key, val), grad in zip(model.named_parameters(), grads):
-        adapted_state_dict[key] = val - task_lr * grad
+        adapted_params[key] = val - task_lr * grad
+        adapted_state_dict[key] = adapted_params[key]
 
     for _ in range(1, num_train_updates):
         Y_sup_hat = model(X_sup, adapted_state_dict)
         loss = loss_fn(Y_sup_hat, Y_sup)
+        zero_grad(adapted_params.values())
         # optimizer.zero_grad()
         # loss.backward(create_graph=True)
         grads = torch.autograd.grad(
-            loss, adapted_state_dict, create_graph=True)
-        for (key, val), grad in zip(adapted_state_dict.items(), grads):
-            adapted_state_dict[key] = val - task_lr * grad
+            loss, adapted_params.values(), create_graph=True)
+        for (key, val), grad in zip(adapted_params.items(), grads):
+            adapted_params[key] = val - task_lr * grad
+            adapted_state_dict[key] = adapted_params[key]
 
     return adapted_state_dict
 
@@ -161,8 +171,8 @@ def train_and_evaluate(model,
                 dataloaders = fetch_dataloaders(['train', 'test', 'meta'],
                                                 task)
                 # Perform a gradient descent to meta-learner on the task
-                a_dict = train_single_task(model, meta_optimizer, task_lr,
-                                           loss_fn, dataloaders, params)
+                a_dict = train_single_task(model, task_lr, loss_fn,
+                                           dataloaders, params)
                 # Store adapted parameters
                 # Store dataloaders for meta-update and evaluation
                 adapted_state_dicts.append(a_dict)
@@ -185,6 +195,7 @@ def train_and_evaluate(model,
                 loss_t = loss_fn(Y_meta_hat, Y_meta)
                 meta_loss += loss_t
             meta_loss /= float(num_inner_tasks)
+            # print(meta_loss.item())
 
             # Meta-update using meta_optimizer
             meta_optimizer.zero_grad()
@@ -299,7 +310,7 @@ if __name__ == '__main__':
         model = MetaLearner(params).cuda()
     else:
         model = MetaLearner(params)
-    meta_optimizer = torch.optim.SGD(model.parameters(), lr=meta_lr)
+    meta_optimizer = torch.optim.Adam(model.parameters(), lr=meta_lr)
 
     # fetch loss function and metrics
     loss_fn = nn.NLLLoss()
