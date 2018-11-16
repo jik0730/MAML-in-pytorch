@@ -81,6 +81,7 @@ def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, params,
             loss.backward()
             optim.step()
         Y_que_hat = net_clone(X_que)
+        loss = loss_fn(Y_que_hat, Y_que)
 
         # extract data from torch Variable, move to cpu, convert to numpy arrays
         Y_que_hat = Y_que_hat.data.cpu().numpy()
