@@ -61,7 +61,7 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
 
     # move to GPU if available
     if params.cuda:
-        X_sup, Y_sup = X_sup.cuda(async=True), Y_sup.cuda(async=True)
+        X_sup, Y_sup = X_sup.cuda(), Y_sup.cuda()
 
     # compute model output and loss
     Y_sup_hat = model(X_sup)
@@ -187,8 +187,8 @@ def train_and_evaluate(model,
                 dl_meta = dataloaders['meta']
                 X_meta, Y_meta = dl_meta.__iter__().next()
                 if params.cuda:
-                    X_meta, Y_meta = X_meta.cuda(async=True), Y_meta.cuda(
-                        async=True)
+                    X_meta, Y_meta = X_meta.cuda(), Y_meta.cuda(
+                        )
 
                 a_dict = adapted_state_dicts[n_task]
                 Y_meta_hat = model(X_meta, a_dict)
