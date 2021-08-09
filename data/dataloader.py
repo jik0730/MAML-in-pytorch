@@ -36,8 +36,8 @@ eval_transformer_ImageNet = transforms.Compose(
 
 def split_omniglot_characters(data_dir, SEED):
     if not os.path.exists(data_dir):
-        with zipfile.ZipFile('./Omniglot.zip', 'r') as zip_ref:
-            zip_ref.extractall('./')
+        with zipfile.ZipFile('./data/Omniglot.zip', 'r') as zip_ref:
+            zip_ref.extractall('./data/')
         print("Unzipping...")
 
     character_folders = [os.path.join(data_dir, family, character) \
