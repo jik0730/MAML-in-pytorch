@@ -20,19 +20,23 @@ from data.dataloader import fetch_dataloaders
 from evaluate import evaluate
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--data_dir',
-    default='data/Omniglot',
-    help="Directory containing the dataset")
-parser.add_argument(
-    '--model_dir',
-    default='experiments/base_model',
-    help="Directory containing params.json")
-parser.add_argument(
-    '--restore_file',
-    default=None,
-    help="Optional, name of the file in --model_dir containing weights to \
-          reload before training")  # 'best' or 'train'
+parser.add_argument('--data_dir',default='data/Omniglot',help="Directory containing the dataset")
+parser.add_argument('--model_dir',default='experiments/base_model',help="Directory containing params.json")
+parser.add_argument('--restore_file',default=None,help="Optional, init model weight file")  # 'best' or 'train'
+parser.add_argument('--seed',default=1)
+parser.add_argument('--dataset',default="Omniglot")
+parser.add_argument('--meta_lr',default=int(1e-3))
+parser.add_argument('--task_lr',default=int(1e-1))
+parser.add_argument('--num_episodes',default=10000)
+parser.add_argument('--num_classes',default=5)
+parser.add_argument('--num_samples',default=1)
+parser.add_argument('--num_query',default=10)
+parser.add_argument('--num_steps',default=100)
+parser.add_argument('--num_inner_tasks',default=8)
+parser.add_argument('--num_train_updates',default=1)
+parser.add_argument('--num_eval_updates',default=3)
+parser.add_argument('--save_summary_steps',default=100)
+parser.add_argument('--num_workers',default=1)
 
 
 def train_single_task(model, task_lr, loss_fn, dataloaders, params):
@@ -217,54 +221,7 @@ def train_and_evaluate(model,
                 train_acc = train_metrics['accuracy']
                 test_acc = test_metrics['accuracy']
 
-                is_best = test_acc >= best_test_acc
-
-                # Save weights
-                utils.save_checkpoint({
-                    'episode': episode + 1,
-                    'state_dict': model.state_dict(),
-                    'optim_dict': meta_optimizer.state_dict()
-                },
-                                      is_best=is_best,
-                                      checkpoint=model_dir)
-
-                # If best_test, best_save_path
-                if is_best:
-                    logging.info("- Found new best accuracy")
-                    best_test_acc = test_acc
-
-                    # Save best test metrics in a json file in the model directory
-                    best_train_json_path = os.path.join(
-                        model_dir, "metrics_train_best_weights.json")
-                    utils.save_dict_to_json(train_metrics,
-                                            best_train_json_path)
-                    best_test_json_path = os.path.join(
-                        model_dir, "metrics_test_best_weights.json")
-                    utils.save_dict_to_json(test_metrics, best_test_json_path)
-
-                # Save latest test metrics in a json file in the model directory
-                last_train_json_path = os.path.join(
-                    model_dir, "metrics_train_last_weights.json")
-                utils.save_dict_to_json(train_metrics, last_train_json_path)
-                last_test_json_path = os.path.join(
-                    model_dir, "metrics_test_last_weights.json")
-                utils.save_dict_to_json(test_metrics, last_test_json_path)
-
-                plot_history['train_loss'].append(train_loss)
-                plot_history['train_acc'].append(train_acc)
-                plot_history['test_loss'].append(test_loss)
-                plot_history['test_acc'].append(test_acc)
-
-                t.set_postfix(
-                    tr_acc='{:05.3f}'.format(train_acc),
-                    te_acc='{:05.3f}'.format(test_acc),
-                    tr_loss='{:05.3f}'.format(train_loss),
-                    te_loss='{:05.3f}'.format(test_loss))
-                print('\n')
-
-            t.update()
-
-    utils.plot_training_results(args.model_dir, plot_history)
+                print('episode: {:0.2f}, test_acc: {:0.2f}, train_acc: {:0.2f}, test_loss: {:0.2f}, train_loss: {:0.2f}'.format(episode, test_acc,train_acc,test_loss,train_loss))
 
 
 if __name__ == '__main__':
