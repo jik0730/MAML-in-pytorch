@@ -2,6 +2,7 @@
 # TODO tieredImageNet
 import random
 import os
+import zipfile
 
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
@@ -35,7 +36,9 @@ eval_transformer_ImageNet = transforms.Compose(
 
 def split_omniglot_characters(data_dir, SEED):
     if not os.path.exists(data_dir):
-        raise Exception("Omniglot data folder does not exist.")
+        with zipfile.ZipFile('./Omniglot.zip', 'r') as zip_ref:
+            zip_ref.extractall('./')
+        print("Unzipping...")
 
     character_folders = [os.path.join(data_dir, family, character) \
                         for family in os.listdir(data_dir) \
