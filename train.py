@@ -12,11 +12,11 @@ from tqdm import tqdm
 from src.model import MetaLearner
 from src.model import Net
 from src.model import metrics
-from src.data_loader import split_omniglot_characters
-from src.data_loader import load_imagenet_images
-from src.data_loader import OmniglotTask
-from src.data_loader import ImageNetTask
-from src.data_loader import fetch_dataloaders
+from data.dataloader import split_omniglot_characters
+from data.dataloader import load_imagenet_images
+from data.dataloader import OmniglotTask
+from data.dataloader import ImageNetTask
+from data.dataloader import fetch_dataloaders
 from evaluate import evaluate
 
 parser = argparse.ArgumentParser()

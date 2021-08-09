@@ -34,8 +34,8 @@ eval_transformer_ImageNet = transforms.Compose(
 
 
 def split_omniglot_characters(data_dir, SEED):
-    # if not os.path.exists(data_dir):
-    #     raise Exception("Omniglot data folder does not exist.")
+    if not os.path.exists(data_dir):
+        raise Exception("Omniglot data folder does not exist.")
 
     character_folders = [os.path.join(data_dir, family, character) \
                         for family in os.listdir(data_dir) \

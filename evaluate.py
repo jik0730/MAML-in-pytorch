@@ -5,7 +5,7 @@ import copy
 import torch
 import numpy as np
 from collections import OrderedDict
-from src.data_loader import fetch_dataloaders
+from data.dataloader import fetch_dataloaders
 
 
 def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, params,
