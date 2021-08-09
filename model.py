@@ -19,11 +19,11 @@ class MetaLearner(nn.Module):
     TODO base-model invariant MetaLearner class
     """
 
-    def __init__(self, params):
+    def __init__(self, args):
         super(MetaLearner, self).__init__()
-        self.params = params
+        self.args = args
         self.meta_learner = Net(
-            params.in_channels, params.num_classes, dataset=params.dataset)
+            args.in_channels, args.num_classes, dataset=args.dataset)
 
     def forward(self, X, adapted_params=None):
         if adapted_params == None:

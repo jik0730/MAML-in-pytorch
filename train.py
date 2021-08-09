@@ -6,12 +6,11 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-import utils
 from torch.autograd import Variable
 from tqdm import tqdm
-from src.model import MetaLearner
-from src.model import Net
-from src.model import metrics
+from model import MetaLearner
+from model import Net
+from model import metrics
 from data.dataloader import split_omniglot_characters
 from data.dataloader import load_imagenet_images
 from data.dataloader import OmniglotTask
@@ -25,8 +24,8 @@ parser.add_argument('--model_dir',default='experiments/base_model',help="Directo
 parser.add_argument('--restore_file',default=None,help="Optional, init model weight file")  # 'best' or 'train'
 parser.add_argument('--seed',default=1)
 parser.add_argument('--dataset',default="Omniglot")
-parser.add_argument('--meta_lr',default=int(1e-3))
-parser.add_argument('--task_lr',default=int(1e-1))
+parser.add_argument('--meta_lr',default=1e-3)
+parser.add_argument('--task_lr',default=1e-1)
 parser.add_argument('--num_episodes',default=10000)
 parser.add_argument('--num_classes',default=5)
 parser.add_argument('--num_samples',default=1)
@@ -64,7 +63,7 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
     X_sup2, Y_sup2 = dl_sup.__iter__().next()
 
     # move to GPU if available
-    if params.cuda:
+    if args.cuda:
         X_sup, Y_sup = X_sup.cuda(), Y_sup.cuda()
 
     # compute model output and loss
@@ -134,12 +133,6 @@ def train_and_evaluate(model,
                       (without its extension .pth.tar)
     TODO Validation classes
     """
-    # reload weights from restore_file if specified
-    if restore_file is not None:
-        restore_path = os.path.join(args.model_dir,
-                                    args.restore_file + '.pth.tar')
-        logging.info("Restoring parameters from {}".format(restore_path))
-        utils.load_checkpoint(restore_path, model, meta_optimizer)
 
     # params information
     num_classes = params.num_classes
@@ -190,7 +183,7 @@ def train_and_evaluate(model,
                 dataloaders = dataloaders_list[n_task]
                 dl_meta = dataloaders['meta']
                 X_meta, Y_meta = dl_meta.__iter__().next()
-                if params.cuda:
+                if args.cuda:
                     X_meta, Y_meta = X_meta.cuda(), Y_meta.cuda(
                         )
 
@@ -227,35 +220,28 @@ def train_and_evaluate(model,
 if __name__ == '__main__':
     # Load the parameters from json file
     args = parser.parse_args()
-    json_path = os.path.join(args.model_dir, 'params.json')
-    assert os.path.isfile(
-        json_path), "No json configuration file found at {}".format(json_path)
-    params = utils.Params(json_path)
 
-    SEED = params.SEED
-    meta_lr = params.meta_lr
-    num_episodes = params.num_episodes
+    SEED = args.seed
+    meta_lr = args.meta_lr
+    num_episodes = args.num_episodes
 
     # Use GPU if available
-    params.cuda = torch.cuda.is_available()
+    args.cuda = torch.cuda.is_available()
 
     # Set the random seed for reproducible experiments
     torch.manual_seed(SEED)
-    if params.cuda: torch.cuda.manual_seed(SEED)
-
-    # Set the logger
-    utils.set_logger(os.path.join(args.model_dir, 'train.log'))
+    if args.cuda: torch.cuda.manual_seed(SEED)
 
     # NOTE These params are only applicable to pre-specified model architecture.
     # Split meta-training and meta-testing characters
-    if 'Omniglot' in args.data_dir and params.dataset == 'Omniglot':
-        params.in_channels = 1
+    if 'Omniglot' in args.data_dir and args.dataset == 'Omniglot':
+        args.in_channels = 1
         meta_train_classes, meta_test_classes = split_omniglot_characters(
             args.data_dir, SEED)
         task_type = OmniglotTask
     elif ('miniImageNet' in args.data_dir or
-          'tieredImageNet' in args.data_dir) and params.dataset == 'ImageNet':
-        params.in_channels = 3
+          'tieredImageNet' in args.data_dir) and args.dataset == 'ImageNet':
+        args.in_channels = 3
         meta_train_classes, meta_test_classes = load_imagenet_images(
             args.data_dir)
         task_type = ImageNetTask
@@ -263,10 +249,10 @@ if __name__ == '__main__':
         raise ValueError("I don't know your dataset")
 
     # Define the model and optimizer
-    if params.cuda:
-        model = MetaLearner(params).cuda()
+    if args.cuda:
+        model = MetaLearner(args).cuda()
     else:
-        model = MetaLearner(params)
+        model = MetaLearner(args)
     meta_optimizer = torch.optim.Adam(model.parameters(), lr=meta_lr)
 
     # fetch loss function and metrics
@@ -274,7 +260,6 @@ if __name__ == '__main__':
     model_metrics = metrics
 
     # Train the model
-    logging.info("Starting training for {} episode(s)".format(num_episodes))
     train_and_evaluate(model, meta_train_classes, meta_test_classes, task_type,
-                       meta_optimizer, loss_fn, model_metrics, params,
+                       meta_optimizer, loss_fn, model_metrics, args,
                        args.model_dir, args.restore_file)

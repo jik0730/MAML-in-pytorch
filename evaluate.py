@@ -8,7 +8,7 @@ from collections import OrderedDict
 from data.dataloader import fetch_dataloaders
 
 
-def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, params,
+def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, args,
              split):
     """
     Evaluate the model on `num_steps` batches.
@@ -26,12 +26,12 @@ def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, params,
                         'test' if evaluate on 'meta-testing' TODO 'meta-validating'
     """
     # params information
-    SEED = params.SEED
-    num_classes = params.num_classes
-    num_samples = params.num_samples
-    num_query = params.num_query
-    num_steps = params.num_steps
-    num_eval_updates = params.num_eval_updates
+    SEED = args.seed
+    num_classes = args.num_classes
+    num_samples = args.num_samples
+    num_query = args.num_query
+    num_steps = args.num_steps
+    num_eval_updates = args.num_eval_updates
 
     # set model to evaluation mode
     # NOTE eval() is not needed since everytime task is varying and batchnorm
@@ -53,7 +53,7 @@ def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, params,
         X_que, Y_que = dl_que.__iter__().next()
 
         # move to GPU if available
-        if params.cuda:
+        if args.cuda:
             X_sup, Y_sup = X_sup.cuda(), Y_sup.cuda()
             X_que, Y_que = X_que.cuda(), Y_que.cuda()
 
