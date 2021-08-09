@@ -1,9 +1,3 @@
-__pycache__*
-data/*
-.vscode*
-*.pyc
 
-experiments/*
-!experiments/base_model
-experiments/base_model/*
-!experiments/base_model/params.json
+data/Omniglot
+wandb
