@@ -18,6 +18,9 @@ from data.dataloader import ImageNetTask
 from data.dataloader import fetch_dataloaders
 from evaluate import evaluate
 
+import wandb
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir',default='data/Omniglot',help="Directory containing the dataset")
 parser.add_argument('--model_dir',default='experiments/base_model',help="Directory containing params.json")
@@ -134,6 +137,8 @@ def train_and_evaluate(model,
     TODO Validation classes
     """
 
+    wandb.init(project='metadrop-pytorch', entity='joeljosephjin', config=vars(params))
+
     # params information
     num_classes = params.num_classes
     num_samples = params.num_samples
@@ -214,6 +219,7 @@ def train_and_evaluate(model,
                 train_acc = train_metrics['accuracy']
                 test_acc = test_metrics['accuracy']
 
+                wandb.log({"episode":episode, "test_acc":test_acc, "train_acc":train_acc,"test_loss":test_loss,"train_loss":train_loss})
                 print('episode: {:0.2f}, test_acc: {:0.2f}, train_acc: {:0.2f}, test_loss: {:0.2f}, train_loss: {:0.2f}'.format(episode, test_acc,train_acc,test_loss,train_loss))
 
 
