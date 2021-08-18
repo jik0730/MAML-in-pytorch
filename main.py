@@ -58,44 +58,23 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
     # extract params
     num_train_updates = params.num_train_updates
 
-    # set model to training mode
-    # model.train()
-
     # support set and query set for a single few-shot task
     dl_sup = dataloaders['train']
     X_sup, Y_sup = dl_sup.__iter__().next()
     X_sup2, Y_sup2 = dl_sup.__iter__().next()
 
-    # move to GPU if available
     if args.cuda:
         X_sup, Y_sup = X_sup.cuda(), Y_sup.cuda()
 
-    # compute model output and loss
-    Y_sup_hat = model(X_sup)
-    loss = loss_fn(Y_sup_hat, Y_sup)
-
-    # clear previous gradients, compute gradients of all variables wrt loss
-    def zero_grad(params):
-        for p in params:
-            if p.grad is not None:
-                p.grad.zero_()
-
-    # NOTE if we want approx-MAML, change create_graph=True to False
-    # zero_grad(model.parameters())
-    grads = torch.autograd.grad(loss, model.parameters(), create_graph=True)
-
-    # performs updates using calculated gradients
-    # we manually compute adpated parameters since optimizer.step() operates in-place
     adapted_state_dict = model.cloned_state_dict()  # NOTE what about just dict
     adapted_params = OrderedDict()
-    for (key, val), grad in zip(model.named_parameters(), grads):
-        adapted_params[key] = val - task_lr * grad
+    for key, val in model.named_parameters():
+        adapted_params[key] = val
         adapted_state_dict[key] = adapted_params[key]
 
-    for _ in range(1, num_train_updates):
+    for _ in range(0, num_train_updates):
         Y_sup_hat = model(X_sup, adapted_state_dict)
         loss = loss_fn(Y_sup_hat, Y_sup)
-        zero_grad(adapted_params.values())
         grads = torch.autograd.grad(
             loss, adapted_params.values(), create_graph=True)
         for (key, val), grad in zip(adapted_params.items(), grads):
