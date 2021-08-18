@@ -19,6 +19,7 @@ from data.dataloader import fetch_dataloaders
 from evaluate import evaluate
 
 import wandb
+from time import time
 
 
 parser = argparse.ArgumentParser()
@@ -145,18 +146,7 @@ def train_and_evaluate(model,
     num_query = params.num_query
     num_inner_tasks = params.num_inner_tasks
     task_lr = params.task_lr
-    meta_lr = params.meta_lr
-
-    # TODO validation accuracy
-    best_test_acc = 0.0
-
-    # For plotting to see summerized training procedure
-    plot_history = {
-        'train_loss': [],
-        'train_acc': [],
-        'test_loss': [],
-        'test_acc': []
-    }
+    start_time = 0
 
     with tqdm(total=params.num_episodes) as t:
         for episode in range(params.num_episodes):
@@ -220,8 +210,8 @@ def train_and_evaluate(model,
                 test_acc = test_metrics['accuracy']
 
                 wandb.log({"episode":episode, "test_acc":test_acc, "train_acc":train_acc,"test_loss":test_loss,"train_loss":train_loss})
-                print('episode: {:0.2f}, test_acc: {:0.2f}, train_acc: {:0.2f}, test_loss: {:0.2f}, train_loss: {:0.2f}'.format(episode, test_acc,train_acc,test_loss,train_loss))
-
+                print('episode: {:0.2f}, test_acc: {:0.2f}, train_acc: {:0.2f}, time: {:0.2f}, test_loss: {:0.2f}, train_loss: {:0.2f}'.format(episode, test_acc,train_acc,time()-start_time,test_loss,train_loss))
+                start_time = time()
 
 if __name__ == '__main__':
     # Load the parameters from json file
