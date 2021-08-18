@@ -81,8 +81,6 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
                 p.grad.zero_()
 
     # NOTE if we want approx-MAML, change create_graph=True to False
-    # optimizer.zero_grad()
-    # loss.backward(create_graph=True)
     zero_grad(model.parameters())
     grads = torch.autograd.grad(loss, model.parameters(), create_graph=True)
 
@@ -98,8 +96,6 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
         Y_sup_hat = model(X_sup, adapted_state_dict)
         loss = loss_fn(Y_sup_hat, Y_sup)
         zero_grad(adapted_params.values())
-        # optimizer.zero_grad()
-        # loss.backward(create_graph=True)
         grads = torch.autograd.grad(
             loss, adapted_params.values(), create_graph=True)
         for (key, val), grad in zip(adapted_params.items(), grads):
