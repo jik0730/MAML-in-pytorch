@@ -59,7 +59,7 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
     num_train_updates = params.num_train_updates
 
     # set model to training mode
-    model.train()
+    # model.train()
 
     # support set and query set for a single few-shot task
     dl_sup = dataloaders['train']
@@ -81,7 +81,7 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
                 p.grad.zero_()
 
     # NOTE if we want approx-MAML, change create_graph=True to False
-    zero_grad(model.parameters())
+    # zero_grad(model.parameters())
     grads = torch.autograd.grad(loss, model.parameters(), create_graph=True)
 
     # performs updates using calculated gradients
