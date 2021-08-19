@@ -1,6 +1,5 @@
 import argparse
 import os
-import logging
 from collections import OrderedDict
 
 import torch
@@ -121,44 +120,25 @@ def train_and_evaluate(model,
     start_time = 0
 
     for episode in range(args.num_episodes):
-        # Run one episode
-        logging.info("Episode {}/{}".format(episode + 1,
-                                            args.num_episodes))
-
         # Run inner loops to get adapted parameters (theta_t`)
         adapted_state_dicts = []
         dataloaders_list = []
-        for n_task in range(num_inner_tasks):
-            task = task_type(meta_train_classes, num_classes, num_samples,
-                                num_query)
-            dataloaders = fetch_dataloaders(['train', 'test', 'meta'],
-                                            task)
-            # Perform a gradient descent to meta-learner on the task
-            a_dict = train_single_task(model, task_lr, loss_fn,
-                                        dataloaders, args)
-            # Store adapted parameters
-            # Store dataloaders for meta-update and evaluation
-            adapted_state_dicts.append(a_dict)
-            dataloaders_list.append(dataloaders)
-
-        # Update the parameters of meta-learner
-        # Compute losses with adapted parameters along with corresponding tasks
-        # Updated the parameters of meta-learner using sum of the losses
         meta_loss = 0
         for n_task in range(num_inner_tasks):
-            dataloaders = dataloaders_list[n_task]
+            task = task_type(meta_train_classes, num_classes, num_samples, num_query)
+            dataloaders = fetch_dataloaders(['train', 'test', 'meta'], task)
+            a_dict = train_single_task(model, task_lr, loss_fn, dataloaders, args)
+
             dl_meta = dataloaders['meta']
             X_meta, Y_meta = dl_meta.__iter__().next()
             X_meta, Y_meta = X_meta.to(args.device), Y_meta.to(args.device)
 
-            a_dict = adapted_state_dicts[n_task]
             Y_meta_hat = model(X_meta, a_dict)
             loss_t = loss_fn(Y_meta_hat, Y_meta)
             meta_loss += loss_t
+            
         meta_loss /= float(num_inner_tasks)
-        # print(meta_loss.item())
 
-        # Meta-update using meta_optimizer
         meta_optimizer.zero_grad()
         meta_loss.backward()
         meta_optimizer.step()
