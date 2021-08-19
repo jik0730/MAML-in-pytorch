@@ -89,71 +89,25 @@ class Net(nn.Module):
             """
             The architecure of functionals is the same as `self`.
             """
-            out = F.conv2d(
-                X,
-                params['meta_learner.features.0.conv0.weight'],
-                params['meta_learner.features.0.conv0.bias'],
-                padding=1)
-            # NOTE we do not need to care about running_mean anv var since
-            # momentum=1.
-            out = F.batch_norm(
-                out,
-                params['meta_learner.features.0.bn0.running_mean'],
-                params['meta_learner.features.0.bn0.running_var'],
-                params['meta_learner.features.0.bn0.weight'],
-                params['meta_learner.features.0.bn0.bias'],
-                momentum=1,
-                training=True)
-            out = F.relu(out, inplace=True)
-            out = F.max_pool2d(out, MP_SIZE)
-
-            out = F.conv2d(
-                out,
-                params['meta_learner.features.1.conv1.weight'],
-                params['meta_learner.features.1.conv1.bias'],
-                padding=1)
-            out = F.batch_norm(
-                out,
-                params['meta_learner.features.1.bn1.running_mean'],
-                params['meta_learner.features.1.bn1.running_var'],
-                params['meta_learner.features.1.bn1.weight'],
-                params['meta_learner.features.1.bn1.bias'],
-                momentum=1,
-                training=True)
-            out = F.relu(out, inplace=True)
-            out = F.max_pool2d(out, MP_SIZE)
-
-            out = F.conv2d(
-                out,
-                params['meta_learner.features.2.conv2.weight'],
-                params['meta_learner.features.2.conv2.bias'],
-                padding=1)
-            out = F.batch_norm(
-                out,
-                params['meta_learner.features.2.bn2.running_mean'],
-                params['meta_learner.features.2.bn2.running_var'],
-                params['meta_learner.features.2.bn2.weight'],
-                params['meta_learner.features.2.bn2.bias'],
-                momentum=1,
-                training=True)
-            out = F.relu(out, inplace=True)
-            out = F.max_pool2d(out, MP_SIZE)
-
-            out = F.conv2d(
-                out,
-                params['meta_learner.features.3.conv3.weight'],
-                params['meta_learner.features.3.conv3.bias'],
-                padding=1)
-            out = F.batch_norm(
-                out,
-                params['meta_learner.features.3.bn3.running_mean'],
-                params['meta_learner.features.3.bn3.running_var'],
-                params['meta_learner.features.3.bn3.weight'],
-                params['meta_learner.features.3.bn3.bias'],
-                momentum=1,
-                training=True)
-            out = F.relu(out, inplace=True)
-            out = F.max_pool2d(out, MP_SIZE)
+            out = X
+            for i in range(4):
+                out = F.conv2d(
+                    out,
+                    params['meta_learner.features.%d.conv%d.weight'%(i,i)],
+                    params['meta_learner.features.%d.conv%d.bias'%(i,i)],
+                    padding=1)
+                # NOTE we do not need to care about running_mean anv var since
+                # momentum=1.
+                out = F.batch_norm(
+                    out,
+                    params['meta_learner.features.%d.bn%d.running_mean'%(i,i)],
+                    params['meta_learner.features.%d.bn%d.running_var'%(i,i)],
+                    params['meta_learner.features.%d.bn%d.weight'%(i,i)],
+                    params['meta_learner.features.%d.bn%d.bias'%(i,i)],
+                    momentum=1,
+                    training=True)
+                out = F.relu(out, inplace=True)
+                out = F.max_pool2d(out, MP_SIZE)
 
             out = out.view(out.size(0), -1)
             out = F.linear(out, params['meta_learner.fc.weight'],

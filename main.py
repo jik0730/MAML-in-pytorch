@@ -123,70 +123,69 @@ def train_and_evaluate(model,
     task_lr = params.task_lr
     start_time = 0
 
-    with tqdm(total=params.num_episodes) as t:
-        for episode in range(params.num_episodes):
-            # Run one episode
-            logging.info("Episode {}/{}".format(episode + 1,
-                                                params.num_episodes))
+    for episode in range(params.num_episodes):
+        # Run one episode
+        logging.info("Episode {}/{}".format(episode + 1,
+                                            params.num_episodes))
 
-            # Run inner loops to get adapted parameters (theta_t`)
-            adapted_state_dicts = []
-            dataloaders_list = []
-            for n_task in range(num_inner_tasks):
-                task = task_type(meta_train_classes, num_classes, num_samples,
-                                 num_query)
-                dataloaders = fetch_dataloaders(['train', 'test', 'meta'],
-                                                task)
-                # Perform a gradient descent to meta-learner on the task
-                a_dict = train_single_task(model, task_lr, loss_fn,
-                                           dataloaders, params)
-                # Store adapted parameters
-                # Store dataloaders for meta-update and evaluation
-                adapted_state_dicts.append(a_dict)
-                dataloaders_list.append(dataloaders)
+        # Run inner loops to get adapted parameters (theta_t`)
+        adapted_state_dicts = []
+        dataloaders_list = []
+        for n_task in range(num_inner_tasks):
+            task = task_type(meta_train_classes, num_classes, num_samples,
+                                num_query)
+            dataloaders = fetch_dataloaders(['train', 'test', 'meta'],
+                                            task)
+            # Perform a gradient descent to meta-learner on the task
+            a_dict = train_single_task(model, task_lr, loss_fn,
+                                        dataloaders, params)
+            # Store adapted parameters
+            # Store dataloaders for meta-update and evaluation
+            adapted_state_dicts.append(a_dict)
+            dataloaders_list.append(dataloaders)
 
-            # Update the parameters of meta-learner
-            # Compute losses with adapted parameters along with corresponding tasks
-            # Updated the parameters of meta-learner using sum of the losses
-            meta_loss = 0
-            for n_task in range(num_inner_tasks):
-                dataloaders = dataloaders_list[n_task]
-                dl_meta = dataloaders['meta']
-                X_meta, Y_meta = dl_meta.__iter__().next()
-                if args.cuda:
-                    X_meta, Y_meta = X_meta.cuda(), Y_meta.cuda(
-                        )
+        # Update the parameters of meta-learner
+        # Compute losses with adapted parameters along with corresponding tasks
+        # Updated the parameters of meta-learner using sum of the losses
+        meta_loss = 0
+        for n_task in range(num_inner_tasks):
+            dataloaders = dataloaders_list[n_task]
+            dl_meta = dataloaders['meta']
+            X_meta, Y_meta = dl_meta.__iter__().next()
+            if args.cuda:
+                X_meta, Y_meta = X_meta.cuda(), Y_meta.cuda(
+                    )
 
-                a_dict = adapted_state_dicts[n_task]
-                Y_meta_hat = model(X_meta, a_dict)
-                loss_t = loss_fn(Y_meta_hat, Y_meta)
-                meta_loss += loss_t
-            meta_loss /= float(num_inner_tasks)
-            # print(meta_loss.item())
+            a_dict = adapted_state_dicts[n_task]
+            Y_meta_hat = model(X_meta, a_dict)
+            loss_t = loss_fn(Y_meta_hat, Y_meta)
+            meta_loss += loss_t
+        meta_loss /= float(num_inner_tasks)
+        # print(meta_loss.item())
 
-            # Meta-update using meta_optimizer
-            meta_optimizer.zero_grad()
-            meta_loss.backward()
-            meta_optimizer.step()
+        # Meta-update using meta_optimizer
+        meta_optimizer.zero_grad()
+        meta_loss.backward()
+        meta_optimizer.step()
 
-            # Evaluate model on new task
-            # Evaluate on train and test dataset given a number of tasks (params.num_steps)
-            if (episode + 1) % params.save_summary_steps == 0:
-                train_metrics = evaluate(model, loss_fn, meta_train_classes,
-                                         task_lr, task_type, metrics, params,
-                                         'train')
-                test_metrics = evaluate(model, loss_fn, meta_test_classes,
+        # Evaluate model on new task
+        # Evaluate on train and test dataset given a number of tasks (params.num_steps)
+        if (episode + 1) % params.save_summary_steps == 0:
+            train_metrics = evaluate(model, loss_fn, meta_train_classes,
                                         task_lr, task_type, metrics, params,
-                                        'test')
+                                        'train')
+            test_metrics = evaluate(model, loss_fn, meta_test_classes,
+                                    task_lr, task_type, metrics, params,
+                                    'test')
 
-                train_loss = train_metrics['loss']
-                test_loss = test_metrics['loss']
-                train_acc = train_metrics['accuracy']
-                test_acc = test_metrics['accuracy']
+            train_loss = train_metrics['loss']
+            test_loss = test_metrics['loss']
+            train_acc = train_metrics['accuracy']
+            test_acc = test_metrics['accuracy']
 
-                wandb.log({"episode":episode, "test_acc":test_acc, "train_acc":train_acc,"test_loss":test_loss,"train_loss":train_loss})
-                print('episode: {:0.2f}, test_acc: {:0.2f}, train_acc: {:0.2f}, time: {:0.2f}, test_loss: {:0.2f}, train_loss: {:0.2f}'.format(episode, test_acc,train_acc,time()-start_time,test_loss,train_loss))
-                start_time = time()
+            wandb.log({"episode":episode, "test_acc":test_acc, "train_acc":train_acc,"test_loss":test_loss,"train_loss":train_loss})
+            print('episode: {:0.2f}, test_acc: {:0.2f}, train_acc: {:0.2f}, time: {:0.2f}, test_loss: {:0.2f}, train_loss: {:0.2f}'.format(episode, test_acc,train_acc,time()-start_time,test_loss,train_loss))
+            start_time = time()
 
 if __name__ == '__main__':
     # Load the parameters from json file
