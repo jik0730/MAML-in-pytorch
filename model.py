@@ -61,6 +61,9 @@ class Net(nn.Module):
                      difference of input size of 'Omniglot' and 'ImageNet'
         """
         super(Net, self).__init__()
+        self.in_channels = in_channels
+        self.dataset = dataset
+        self.num_classes = num_classes
         self.features = nn.Sequential(
             conv_block(0, in_channels, padding=1, pooling=True),
             conv_block(1, N_FILTERS, padding=1, pooling=True),
@@ -72,6 +75,20 @@ class Net(nn.Module):
             self.add_module('fc', nn.Linear(64 * 5 * 5, num_classes))
         else:
             raise Exception("I don't know your dataset")
+
+    def get_phi(self):
+        phi = nn.Sequential(
+            conv_block(0, self.in_channels, padding=1, pooling=True),
+            conv_block(1, N_FILTERS, padding=1, pooling=True),
+            conv_block(2, N_FILTERS, padding=1, pooling=True),
+            conv_block(3, N_FILTERS, padding=1, pooling=True))
+        if self.dataset == 'Omniglot':
+            phi.add_module('fc', nn.Linear(64, self.num_classes))
+        elif self.dataset == 'ImageNet':
+            phi.add_module('fc', nn.Linear(64 * 5 * 5, self.num_classes))
+        else:
+            raise Exception("I don't know your dataset")
+        return phi
 
     def forward(self, X, params=None):
         """

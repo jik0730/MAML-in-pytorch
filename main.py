@@ -1,4 +1,3 @@
-# Base code is from https://github.com/cs230-stanford/cs230-code-examples
 import argparse
 import os
 import logging
@@ -223,6 +222,9 @@ if __name__ == '__main__':
         model = MetaLearner(args).cuda()
     else:
         model = MetaLearner(args)
+
+    phi = model.meta_learner.get_phi()
+    
     meta_optimizer = torch.optim.Adam(model.parameters(), lr=meta_lr)
 
     # fetch loss function and metrics
