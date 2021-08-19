@@ -46,9 +46,7 @@ def train_and_evaluate(model,
                        task_type,
                        meta_optimizer,
                        loss_fn,
-                       metrics,
-                       args,
-                       restore_file=None):
+                       args):
     """
     Train the model and evaluate every `save_summary_steps`.
 
@@ -59,11 +57,7 @@ def train_and_evaluate(model,
         task_type: (subclass of FewShotTask) a type for generating tasks
         meta_optimizer: (torch.optim) an meta-optimizer for MetaLearner
         loss_fn: a loss function
-        metrics: (dict) a dictionary of functions that compute a metric using 
-                 the output and labels of each batch
         args: (args) hyperparameters
-        restore_file: (string) optional- name of file to restore from
-                      (without its extension .pth.tar)
     TODO Validation classes
     """
 
@@ -138,30 +132,22 @@ if __name__ == '__main__':
     # Load the parameters from json file
     args = parser.parse_args()
 
-    SEED = args.seed
-    meta_lr = args.meta_lr
-    num_episodes = args.num_episodes
-
     # Use GPU if available
-    args.cuda = torch.cuda.is_available()
     args.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Set the random seed for reproducible experiments
-    torch.manual_seed(SEED)
-    torch.cuda.manual_seed(SEED)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
 
     # NOTE These params are only applicable to pre-specified model architecture.
     # Split meta-training and meta-testing characters
     if 'Omniglot' in args.data_dir and args.dataset == 'Omniglot':
         args.in_channels = 1
-        meta_train_classes, meta_test_classes = split_omniglot_characters(
-            args.data_dir, SEED)
+        meta_train_classes, meta_test_classes = split_omniglot_characters(args.data_dir, args.seed)
         task_type = OmniglotTask
-    elif ('miniImageNet' in args.data_dir or
-          'tieredImageNet' in args.data_dir) and args.dataset == 'ImageNet':
+    elif ('miniImageNet' in args.data_dir or 'tieredImageNet' in args.data_dir) and args.dataset == 'ImageNet':
         args.in_channels = 3
-        meta_train_classes, meta_test_classes = load_imagenet_images(
-            args.data_dir)
+        meta_train_classes, meta_test_classes = load_imagenet_images(args.data_dir)
         task_type = ImageNetTask
     else:
         raise ValueError("I don't know your dataset")
@@ -171,7 +157,7 @@ if __name__ == '__main__':
 
     # phi = model.phi
     
-    meta_optimizer = torch.optim.Adam(model.parameters(), lr=meta_lr)
+    meta_optimizer = torch.optim.Adam(model.parameters(), lr=args.meta_lr)
 
     # fetch loss function and metrics
     loss_fn = nn.NLLLoss()
@@ -179,5 +165,4 @@ if __name__ == '__main__':
 
     # Train the model
     train_and_evaluate(model, meta_train_classes, meta_test_classes, task_type,
-                       meta_optimizer, loss_fn, model_metrics, args,
-                       args.restore_file)
+                       meta_optimizer, loss_fn, args)
