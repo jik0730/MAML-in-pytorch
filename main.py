@@ -40,48 +40,6 @@ parser.add_argument('--save_summary_steps',default=100, type=int)
 parser.add_argument('--num_workers',default=1, type=int)
 
 
-def train_single_task(model, task_lr, loss_fn, dataloaders, args):
-    """
-    Train the model on a single few-shot task.
-    We train the model with single or multiple gradient update.
-    
-    Args:
-        model: (MetaLearner) a meta-learner to be adapted for a new task
-        task_lr: (float) a task-specific learning rate
-        loss_fn: a loss function
-        dataloaders: (dict) a dict of DataLoader objects that fetches both of 
-                     support set and query set
-        args: (args) hyperparameters
-    """
-    # extract params
-    num_train_updates = args.num_train_updates
-
-    # support set and query set for a single few-shot task
-    dl_sup = dataloaders['train']
-    X_sup, Y_sup = dl_sup.__iter__().next()
-    X_sup2, Y_sup2 = dl_sup.__iter__().next()
-
-    X_sup, Y_sup = X_sup.to(args.device), Y_sup.to(args.device)
-
-    adapted_state_dict = model.cloned_state_dict()  # NOTE what about just dict
-    adapted_params = OrderedDict()
-    for key, val in model.named_parameters():
-        adapted_params[key] = val
-        adapted_state_dict[key] = adapted_params[key]
-
-    for _ in range(0, num_train_updates):
-        Y_sup_hat = model(X_sup, adapted_state_dict)
-        loss = loss_fn(Y_sup_hat, Y_sup)
-        # print(len(list(adapted_params.values())))
-        grads = torch.autograd.grad(
-            loss, adapted_params.values(), create_graph=True)
-        for (key, val), grad in zip(adapted_params.items(), grads):
-            adapted_params[key] = val - task_lr * grad
-            adapted_state_dict[key] = adapted_params[key]
-
-    return adapted_state_dict
-
-
 def train_and_evaluate(model,
                        meta_train_classes,
                        meta_test_classes,
@@ -127,13 +85,27 @@ def train_and_evaluate(model,
         for n_task in range(num_inner_tasks):
             task = task_type(meta_train_classes, num_classes, num_samples, num_query)
             dataloaders = fetch_dataloaders(['train', 'test', 'meta'], task)
-            a_dict = train_single_task(model, task_lr, loss_fn, dataloaders, args)
+
+            dl_sup = dataloaders['train']
+            X_sup, Y_sup = dl_sup.__iter__().next()
+            X_sup, Y_sup = X_sup.to(args.device), Y_sup.to(args.device)
+
+            adapted_params, adapted_state_dict = model.cloned_state_dict()  # NOTE what about just dict
+
+            for _ in range(0, args.num_train_updates):
+                Y_sup_hat = model(X_sup, adapted_state_dict)
+                loss = loss_fn(Y_sup_hat, Y_sup)
+
+                grads = torch.autograd.grad(loss, adapted_params.values(), create_graph=True)
+                for (key, val), grad in zip(adapted_params.items(), grads):
+                    adapted_params[key] = val - task_lr * grad
+                    adapted_state_dict[key] = adapted_params[key]
 
             dl_meta = dataloaders['meta']
             X_meta, Y_meta = dl_meta.__iter__().next()
             X_meta, Y_meta = X_meta.to(args.device), Y_meta.to(args.device)
 
-            Y_meta_hat = model(X_meta, a_dict)
+            Y_meta_hat = model(X_meta, adapted_state_dict)
             loss_t = loss_fn(Y_meta_hat, Y_meta)
             meta_loss += loss_t
             

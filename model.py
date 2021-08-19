@@ -34,11 +34,13 @@ class MetaLearner(nn.Module):
         return out
 
     def cloned_state_dict(self):
-        cloned_state_dict = {
-            key: val.clone()
-            for key, val in self.state_dict().items()
-        }
-        return cloned_state_dict
+        adapted_state_dict = {key: val.clone() for key, val in self.state_dict().items()}
+        adapted_params = OrderedDict()
+        for key, val in self.named_parameters():
+            adapted_params[key] = val
+            adapted_state_dict[key] = adapted_params[key]
+
+        return adapted_params, adapted_state_dict
 
 
 class Net(nn.Module):
