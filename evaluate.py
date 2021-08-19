@@ -23,21 +23,14 @@ def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, args,
         split: (string) 'train' if evaluate on 'meta-training' and 
                         'test' if evaluate on 'meta-testing' TODO 'meta-validating'
     """
-    # params information
-    SEED = args.seed
-    num_samples = args.num_samples
-    num_query = args.num_query
-    num_steps = args.num_steps
-    num_eval_updates = args.num_eval_updates
-
     # summary for current eval loop
     summ = []
 
     # compute metrics over the dataset
-    for episode in range(num_steps):
+    for episode in range(args.num_steps):
         # Make a single task
         # Make dataloaders to load support set and query set
-        task = task_type(meta_classes, args.num_classes, num_samples, num_query)
+        task = task_type(meta_classes, args.num_classes, args.num_samples, args.num_query)
         dataloaders = fetch_dataloaders(['train', 'test'], task)
         dl_sup = dataloaders['train']
         dl_que = dataloaders['test']
@@ -50,7 +43,7 @@ def evaluate(model, loss_fn, meta_classes, task_lr, task_type, metrics, args,
         # Direct optimization
         net_clone = copy.deepcopy(model)
         optim = torch.optim.SGD(net_clone.parameters(), lr=task_lr)
-        for _ in range(num_eval_updates):
+        for _ in range(args.num_eval_updates):
             Y_sup_hat = net_clone(X_sup)
             loss = loss_fn(Y_sup_hat, Y_sup)
             optim.zero_grad()
