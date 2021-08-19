@@ -41,7 +41,7 @@ parser.add_argument('--save_summary_steps',default=100, type=int)
 parser.add_argument('--num_workers',default=1, type=int)
 
 
-def train_single_task(model, task_lr, loss_fn, dataloaders, params):
+def train_single_task(model, task_lr, loss_fn, dataloaders, args):
     """
     Train the model on a single few-shot task.
     We train the model with single or multiple gradient update.
@@ -52,18 +52,17 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
         loss_fn: a loss function
         dataloaders: (dict) a dict of DataLoader objects that fetches both of 
                      support set and query set
-        params: (Params) hyperparameters
+        args: (args) hyperparameters
     """
     # extract params
-    num_train_updates = params.num_train_updates
+    num_train_updates = args.num_train_updates
 
     # support set and query set for a single few-shot task
     dl_sup = dataloaders['train']
     X_sup, Y_sup = dl_sup.__iter__().next()
     X_sup2, Y_sup2 = dl_sup.__iter__().next()
 
-    if args.cuda:
-        X_sup, Y_sup = X_sup.cuda(), Y_sup.cuda()
+    X_sup, Y_sup = X_sup.to(args.device), Y_sup.to(args.device)
 
     adapted_state_dict = model.cloned_state_dict()  # NOTE what about just dict
     adapted_params = OrderedDict()
@@ -74,6 +73,7 @@ def train_single_task(model, task_lr, loss_fn, dataloaders, params):
     for _ in range(0, num_train_updates):
         Y_sup_hat = model(X_sup, adapted_state_dict)
         loss = loss_fn(Y_sup_hat, Y_sup)
+        # print(len(list(adapted_params.values())))
         grads = torch.autograd.grad(
             loss, adapted_params.values(), create_graph=True)
         for (key, val), grad in zip(adapted_params.items(), grads):
@@ -90,8 +90,7 @@ def train_and_evaluate(model,
                        meta_optimizer,
                        loss_fn,
                        metrics,
-                       params,
-                       model_dir,
+                       args,
                        restore_file=None):
     """
     Train the model and evaluate every `save_summary_steps`.
@@ -105,27 +104,26 @@ def train_and_evaluate(model,
         loss_fn: a loss function
         metrics: (dict) a dictionary of functions that compute a metric using 
                  the output and labels of each batch
-        params: (Params) hyperparameters
-        model_dir: (string) directory containing config, weights and log
+        args: (args) hyperparameters
         restore_file: (string) optional- name of file to restore from
                       (without its extension .pth.tar)
     TODO Validation classes
     """
 
-    wandb.init(project='metadrop-pytorch', entity='joeljosephjin', config=vars(params))
+    wandb.init(project='metadrop-pytorch', entity='joeljosephjin', config=vars(args))
 
     # params information
-    num_classes = params.num_classes
-    num_samples = params.num_samples
-    num_query = params.num_query
-    num_inner_tasks = params.num_inner_tasks
-    task_lr = params.task_lr
+    num_classes = args.num_classes
+    num_samples = args.num_samples
+    num_query = args.num_query
+    num_inner_tasks = args.num_inner_tasks
+    task_lr = args.task_lr
     start_time = 0
 
-    for episode in range(params.num_episodes):
+    for episode in range(args.num_episodes):
         # Run one episode
         logging.info("Episode {}/{}".format(episode + 1,
-                                            params.num_episodes))
+                                            args.num_episodes))
 
         # Run inner loops to get adapted parameters (theta_t`)
         adapted_state_dicts = []
@@ -137,7 +135,7 @@ def train_and_evaluate(model,
                                             task)
             # Perform a gradient descent to meta-learner on the task
             a_dict = train_single_task(model, task_lr, loss_fn,
-                                        dataloaders, params)
+                                        dataloaders, args)
             # Store adapted parameters
             # Store dataloaders for meta-update and evaluation
             adapted_state_dicts.append(a_dict)
@@ -151,9 +149,7 @@ def train_and_evaluate(model,
             dataloaders = dataloaders_list[n_task]
             dl_meta = dataloaders['meta']
             X_meta, Y_meta = dl_meta.__iter__().next()
-            if args.cuda:
-                X_meta, Y_meta = X_meta.cuda(), Y_meta.cuda(
-                    )
+            X_meta, Y_meta = X_meta.to(args.device), Y_meta.to(args.device)
 
             a_dict = adapted_state_dicts[n_task]
             Y_meta_hat = model(X_meta, a_dict)
@@ -168,13 +164,13 @@ def train_and_evaluate(model,
         meta_optimizer.step()
 
         # Evaluate model on new task
-        # Evaluate on train and test dataset given a number of tasks (params.num_steps)
-        if (episode + 1) % params.save_summary_steps == 0:
+        # Evaluate on train and test dataset given a number of tasks (args.num_steps)
+        if (episode + 1) % args.save_summary_steps == 0:
             train_metrics = evaluate(model, loss_fn, meta_train_classes,
-                                        task_lr, task_type, metrics, params,
+                                        task_lr, task_type, metrics, args,
                                         'train')
             test_metrics = evaluate(model, loss_fn, meta_test_classes,
-                                    task_lr, task_type, metrics, params,
+                                    task_lr, task_type, metrics, args,
                                     'test')
 
             train_loss = train_metrics['loss']
@@ -196,10 +192,11 @@ if __name__ == '__main__':
 
     # Use GPU if available
     args.cuda = torch.cuda.is_available()
+    args.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Set the random seed for reproducible experiments
     torch.manual_seed(SEED)
-    if args.cuda: torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
 
     # NOTE These params are only applicable to pre-specified model architecture.
     # Split meta-training and meta-testing characters
@@ -218,12 +215,9 @@ if __name__ == '__main__':
         raise ValueError("I don't know your dataset")
 
     # Define the model and optimizer
-    if args.cuda:
-        model = MetaLearner(args).cuda()
-    else:
-        model = MetaLearner(args)
+    model = MetaLearner(args).to(args.device)
 
-    phi = model.meta_learner.get_phi()
+    # phi = model.phi
     
     meta_optimizer = torch.optim.Adam(model.parameters(), lr=meta_lr)
 
@@ -234,4 +228,4 @@ if __name__ == '__main__':
     # Train the model
     train_and_evaluate(model, meta_train_classes, meta_test_classes, task_type,
                        meta_optimizer, loss_fn, model_metrics, args,
-                       args.model_dir, args.restore_file)
+                       args.restore_file)
